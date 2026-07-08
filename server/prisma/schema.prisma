@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model CASE {
+  case_no                                           String            @id(map: "pk_case") @db.VarChar(15)
+  type                                              String            @db.VarChar(20)
+  Category                                          String            @db.VarChar(30)
+  Jurisdiction_Type                                 String            @db.VarChar(30)
+  Name                                              String            @db.VarChar(100)
+  Description                                       String?
+  curr_status                                       String            @db.VarChar(20)
+  CASE_STATUS                                       CASE_STATUS[]
+  DOCUMENT_REPO                                     DOCUMENT_REPO[]
+  EVIDENCE                                          EVIDENCE[]
+  FILING_DETAILS                                    FILING_DETAILS[]
+  HANDLED_BY                                        HANDLED_BY[]
+  HANDLES                                           HANDLES[]
+  HEARING                                           HEARING[]
+  IS_PRECEDENT_IS_PRECEDENT_case_noToCASE           IS_PRECEDENT[]    @relation("IS_PRECEDENT_case_noToCASE")
+  IS_PRECEDENT_IS_PRECEDENT_precedent_case_noToCASE IS_PRECEDENT[]    @relation("IS_PRECEDENT_precedent_case_noToCASE")
+  JUDGEMENT                                         JUDGEMENT[]
+  PARTICIPATES_IN                                   PARTICIPATES_IN[]
+  WARRANT                                           WARRANT[]
+}
+
+model CASE_STATUS {
+  Status_ID      String  @id(map: "pk_case_status") @db.VarChar(15)
+  case_no        String  @db.VarChar(15)
+  status         String  @db.VarChar(20)
+  curr_stage     String  @db.VarChar(30)
+  is_dormant     Boolean
+  dormant_reason String?
+  CASE           CASE    @relation(fields: [case_no], references: [case_no], onDelete: Cascade, map: "fk_case_status_case")
+}
+
+model COURT {
+  ID                 Int                  @id(map: "pk_court")
+  Location           String
+  Level              String               @db.VarChar(20)
+  Pin_Code           Int
+  Email              String               @unique(map: "uq_court_email") @db.VarChar(50)
+  Phone_No           String               @unique(map: "uq_court_phone") @db.VarChar(15)
+  HANDLES            HANDLES[]
+  HEARING            HEARING[]
+  HEARING_TRANSCRIPT HEARING_TRANSCRIPT[]
+  WORKS_FOR          WORKS_FOR[]
+}
+
+model DOCUMENT_REPO {
+  ID                  String  @id(map: "pk_document_repo") @db.VarChar(20)
+  Name                String  @db.VarChar(50)
+  Type                String  @db.VarChar(20)
+  Link                String
+  BAR_Registration_No String? @db.VarChar(20)
+  case_no             String? @db.VarChar(15)
+  LAWYER              LAWYER? @relation(fields: [BAR_Registration_No], references: [BAR_Registration_No], map: "fk_docrepo_lawyer")
+  CASE                CASE?   @relation(fields: [case_no], references: [case_no], map: "fk_document_repo_case")
+}
+
+model EVIDENCE {
+  ID              Int      @id(map: "pk_evidence")
+  Type            String   @db.VarChar(20)
+  Description     String?
+  Submission_date DateTime @db.Date
+  Verified_Status Boolean
+  case_no         String   @db.VarChar(15)
+  CASE            CASE     @relation(fields: [case_no], references: [case_no], onDelete: SetNull, map: "fk_evidence_case")
+}
+
+model FILING_DETAILS {
+  ID                String   @id(map: "pk_filing_details") @db.VarChar(15)
+  Registration_date DateTime @db.Date
+  filing_mode       String   @db.VarChar(50)
+  case_no           String   @db.VarChar(15)
+  CASE              CASE     @relation(fields: [case_no], references: [case_no], onDelete: SetNull, map: "fk_filing_case")
+}
+
+model FORMS {
+  judge_id Int
+  panel_id Int
+  JUDGE    JUDGE @relation(fields: [judge_id], references: [ID], onDelete: Cascade, map: "fk_forms_judge")
+  PANEL    PANEL @relation(fields: [panel_id], references: [ID], onDelete: Cascade, map: "fk_forms_panel")
+
+  @@id([judge_id, panel_id], map: "pk_forms")
+}
+
+model HANDLED_BY {
+  BAR_Registration_No String @db.VarChar(20)
+  case_no             String @db.VarChar(15)
+  CASE                CASE   @relation(fields: [case_no], references: [case_no], onDelete: Cascade, map: "fk_hb_case")
+  LAWYER              LAWYER @relation(fields: [BAR_Registration_No], references: [BAR_Registration_No], onDelete: Cascade, map: "fk_hb_lawyer")
+
+  @@id([BAR_Registration_No, case_no], map: "pk_handled_by")
+}
+
+model HANDLES {
+  court_id Int
+  case_no  String @db.VarChar(15)
+  CASE     CASE   @relation(fields: [case_no], references: [case_no], onDelete: Cascade, map: "fk_han_case")
+  COURT    COURT  @relation(fields: [court_id], references: [ID], onDelete: Cascade, map: "fk_han_court")
+
+  @@id([court_id, case_no], map: "pk_handles")
+}
+
+model HEARD_BY {
+  hearing_no Int
+  panel_id   Int
+  HEARING    HEARING @relation(fields: [hearing_no], references: [Hearing_No], onDelete: Cascade, map: "fk_hb_hearing")
+  PANEL      PANEL   @relation(fields: [panel_id], references: [ID], onDelete: Cascade, map: "fk_hb_panel")
+
+  @@id([hearing_no, panel_id], map: "pk_heard_by")
+}
+
+model HEARING {
+  Hearing_No         Int                  @id(map: "pk_hearing")
+  case_no            String               @db.VarChar(15)
+  court_id           Int
+  Type               String               @db.VarChar(20)
+  Status             String               @db.VarChar(20)
+  HEARD_BY           HEARD_BY[]
+  CASE               CASE                 @relation(fields: [case_no], references: [case_no], onDelete: Cascade, map: "fk_hearing_case")
+  COURT              COURT                @relation(fields: [court_id], references: [ID], onDelete: SetNull, map: "fk_hearing_court")
+  HEARING_TRANSCRIPT HEARING_TRANSCRIPT[]
+}
+
+model HEARING_TRANSCRIPT {
+  ID          Int
+  Hearing_no  Int
+  Text        String
+  recorded_by Int
+  court_id    Int
+  Time_stamp  DateTime @db.Time(6)
+  COURT       COURT    @relation(fields: [court_id], references: [ID], onDelete: SetNull, map: "fk_ht_court")
+  HEARING     HEARING  @relation(fields: [Hearing_no], references: [Hearing_No], onDelete: Cascade, map: "fk_ht_hearing")
+  JUDGE       JUDGE    @relation(fields: [recorded_by], references: [ID], onDelete: SetNull, map: "fk_ht_judge")
+
+  @@id([Hearing_no, ID], map: "pk_hearing_transcript")
+}
+
+model IS_PRECEDENT {
+  case_no                                   String @db.VarChar(15)
+  precedent_case_no                         String @db.VarChar(15)
+  CASE_IS_PRECEDENT_case_noToCASE           CASE   @relation("IS_PRECEDENT_case_noToCASE", fields: [case_no], references: [case_no], onDelete: Cascade, map: "fk_ip_case")
+  CASE_IS_PRECEDENT_precedent_case_noToCASE CASE   @relation("IS_PRECEDENT_precedent_case_noToCASE", fields: [precedent_case_no], references: [case_no], onDelete: Cascade, map: "fk_ip_precedent")
+
+  @@id([case_no, precedent_case_no], map: "pk_is_precedent")
+}
+
+model JUDGE {
+  ID                 Int                  @id(map: "pk_judge")
+  Name               String               @db.VarChar(100)
+  Gender             String               @db.VarChar(15)
+  DOB                DateTime             @db.Date
+  Email              String               @unique(map: "uq_judge_email") @db.VarChar(50)
+  Status             String               @db.VarChar(20)
+  Phone_No           String               @unique(map: "uq_judge_phone") @db.VarChar(15)
+  Address            String?
+  Position           String               @db.VarChar(30)
+  Qualification      String               @db.VarChar(50)
+  Experience         String?              @db.VarChar(50)
+  FORMS              FORMS[]
+  HEARING_TRANSCRIPT HEARING_TRANSCRIPT[]
+  WORKS_FOR          WORKS_FOR[]
+}
+
+model JUDGEMENT {
+  ID                         String   @id(map: "pk_judgement") @db.VarChar(25)
+  Decision_date              DateTime @db.Date
+  verdict                    String
+  compensations              String?
+  sentence_length_punishment String?
+  remark                     String?
+  case_no                    String   @db.VarChar(15)
+  panel_id                   Int?
+  CASE                       CASE     @relation(fields: [case_no], references: [case_no], onDelete: SetNull, map: "fk_judgement_case")
+  PANEL                      PANEL?   @relation(fields: [panel_id], references: [ID], map: "fk_judgement_panel")
+}
+
+model LAWYER {
+  BAR_Registration_No String          @id(map: "pk_lawyer") @db.VarChar(20)
+  Qualification       String          @db.VarChar(100)
+  Specialization      String          @db.VarChar(100)
+  Phone_No            String          @unique(map: "uq_lawyer_phone") @db.VarChar(15)
+  Email               String          @unique(map: "uq_lawyer_email") @db.VarChar(50)
+  Office_Address      String?
+  Experience          String?
+  Status              String          @db.VarChar(20)
+  DOCUMENT_REPO       DOCUMENT_REPO[]
+  HANDLED_BY          HANDLED_BY[]
+}
+
+model LITIGANTS {
+  ID              String            @id(map: "pk_litigants") @db.VarChar(20)
+  Name            String            @db.VarChar(100)
+  Type            String            @db.VarChar(30)
+  Address         String?
+  Phone           String            @unique(map: "uq_litigants_phone") @db.VarChar(15)
+  Email           String            @unique(map: "uq_litigants_email") @db.VarChar(50)
+  Gender          String?           @db.VarChar(10)
+  PARTICIPATES_IN PARTICIPATES_IN[]
+}
+
+model PANEL {
+  ID            Int         @id(map: "pk_panel")
+  type          String      @db.VarChar(30)
+  form_date     DateTime    @db.Date
+  dissolve_date DateTime?   @db.Date
+  FORMS         FORMS[]
+  HEARD_BY      HEARD_BY[]
+  JUDGEMENT     JUDGEMENT[]
+}
+
+model PARTICIPATES_IN {
+  litigant_id String    @db.VarChar(20)
+  case_no     String    @db.VarChar(15)
+  CASE        CASE      @relation(fields: [case_no], references: [case_no], onDelete: Cascade, map: "fk_pi_case")
+  LITIGANTS   LITIGANTS @relation(fields: [litigant_id], references: [ID], onDelete: Cascade, map: "fk_pi_litigant")
+
+  @@id([litigant_id, case_no], map: "pk_participates_in")
+}
+
+model WARRANT {
+  ID         String    @id(map: "pk_warrant") @db.VarChar(15)
+  Type       String    @db.VarChar(20)
+  Issue_Date DateTime  @db.Timestamp(6)
+  Exp_date   DateTime? @db.Timestamp(6)
+  Status     String    @db.VarChar(20)
+  case_no    String    @db.VarChar(15)
+  CASE       CASE      @relation(fields: [case_no], references: [case_no], onDelete: SetNull, map: "fk_warrant_case")
+}
+
+model WORKS_FOR {
+  judge_id Int
+  court_id Int
+  COURT    COURT @relation(fields: [court_id], references: [ID], onDelete: Cascade, map: "fk_wf_court")
+  JUDGE    JUDGE @relation(fields: [judge_id], references: [ID], onDelete: Cascade, map: "fk_wf_judge")
+
+  @@id([judge_id, court_id], map: "pk_works_for")
+}
