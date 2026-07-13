@@ -28,36 +28,75 @@ export default function aiRoutes(prisma: PrismaClient): Router {
     }
 
     try {
-      // Step 1: Generate SQL from natural language via Gemini
-      const { sql, explanation } = await generateSQL(question, apiKey);
+      // Step 1: Initial AI SQL Generation
+      let { sql, explanation } = await generateSQL(question, apiKey);
 
-      // Step 2: Validate the generated SQL for safety
-      const validation = validateSQL(sql);
-      if (!validation.isValid) {
-        return res.status(422).json({
-          error: validation.error,
-          sql,
-          explanation,
-          rows: [],
-          executionTimeMs: 0,
-        });
-      }
-
-      // Step 3: Execute the validated SQL
       let rows: any[] = [];
       let executionError: string | null = null;
-      const startTime = performance.now();
+      let executionTimeMs = 0;
+      
+      const MAX_RETRIES = 2; // Auto-heal up to 2 times
 
-      try {
-        rows = await prisma.$queryRawUnsafe(sql);
-      } catch (execErr: any) {
-        executionError = execErr.message;
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        // Step 2: Validate safety
+        const validation = validateSQL(sql);
+        if (!validation.isValid) {
+          if (attempt === 0) {
+             return res.status(422).json({
+               error: validation.error,
+               sql,
+               explanation,
+               rows: [],
+               executionTimeMs: 0,
+             });
+          } else {
+             break; // Stop auto-healing if it generated a dangerous query during fix
+          }
+        }
+
+        // Step 3: Execute the SQL
+        const startTime = performance.now();
+        executionError = null; // Reset for this attempt
+
+        try {
+          try {
+            rows = await prisma.$queryRawUnsafe(sql);
+          } catch (execErr: any) {
+            if (execErr.message?.includes('terminating connection') || execErr.message?.includes('E57P01') || execErr.message?.includes('closed')) {
+              console.warn('⚠️ Database connection dropped during AI query. Retrying immediately...');
+              rows = await prisma.$queryRawUnsafe(sql);
+            } else {
+              throw execErr;
+            }
+          }
+        } catch (execErr: any) {
+          executionError = execErr.message;
+        }
+        
+        executionTimeMs = Math.round(performance.now() - startTime);
+
+        // If no execution error, we successfully ran the query! Break out of the auto-healing loop.
+        if (!executionError) {
+          break;
+        }
+
+        // If we have an execution error (e.g. syntax error, missing column) AND we have retries left:
+        if (executionError && attempt < MAX_RETRIES) {
+          console.warn(`[Auto-Heal Attempt ${attempt + 1}] SQL failed: ${executionError.split('\n')[0]}`);
+          const fixPrompt = `You generated this SQL query for the question "${question}":\n\n${sql}\n\nWhen executed in PostgreSQL, it produced this error:\n\n${executionError}\n\nCRITICAL FIX INSTRUCTIONS:\n1. If the error says a column does not exist, check the schema and ensure you are using the EXACT column name wrapped in double quotes (e.g., "Name" instead of name or NAME).\n2. If there is a syntax error, ensure you are using standard PostgreSQL syntax.\n3. If a relation does not exist, ensure you are joining the correct tables.\nPlease fix the SQL query to resolve this error. Return ONLY the fixed JSON object with "sql" and "explanation".`;
+          
+          try {
+             const fixResult = await generateSQL(fixPrompt, apiKey);
+             sql = fixResult.sql;
+             explanation = fixResult.explanation + ` (Auto-corrected a SQL error on attempt ${attempt + 1})`;
+          } catch (fixGenErr) {
+             console.error('Failed to auto-heal:', fixGenErr);
+             break; // Stop trying if the AI fails to generate a fix
+          }
+        }
       }
 
-      const endTime = performance.now();
-      const executionTimeMs = Math.round(endTime - startTime);
-
-      // Step 4: Log the AI query (tagged as AI-generated)
+      // Step 4: Log the final query outcome
       try {
         await prisma.$executeRawUnsafe(
           `INSERT INTO "query_logs" ("query", "status", "execution_time_ms") VALUES ($1, $2, $3)`,
@@ -88,8 +127,24 @@ export default function aiRoutes(prisma: PrismaClient): Router {
 
     } catch (err: any) {
       console.error('AI generation error:', err.message);
+      
+      let userFriendlyError = err.message;
+      
+      // Parse ugly Google API errors into friendly messages
+      if (err.message?.includes('429 Too Many Requests') || err.message?.includes('Quota exceeded')) {
+        userFriendlyError = "⚠️ AI Rate Limit Reached: You are sending requests too quickly. Please wait about 60 seconds and try again.";
+      } else if (err.message?.includes('fetch failed')) {
+        userFriendlyError = "⚠️ Network Error: Could not connect to the AI service. Please try again.";
+      } else if (err.message?.includes('API_KEY')) {
+        userFriendlyError = "⚠️ Configuration Error: Invalid or missing API Key.";
+      } else if (err.message?.includes('503') || err.message?.includes('high demand')) {
+        userFriendlyError = "⚠️ High Demand: Google's AI servers are currently overloaded. Please try again in a few moments.";
+      } else {
+        userFriendlyError = `⚠️ AI Error: An unexpected error occurred while generating the response. (${err.message})`;
+      }
+
       return res.status(500).json({
-        error: `AI Error: ${err.message}`,
+        error: userFriendlyError,
         sql: '',
         explanation: '',
         rows: [],

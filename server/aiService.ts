@@ -183,6 +183,43 @@ TABLE "IS_PRECEDENT" (
   precedent_case_no VARCHAR(15) REFERENCES "CASE",
   PRIMARY KEY (case_no, precedent_case_no)
 );
+
+-- Note on table relationships:
+-- A CASE can be handled by multiple LAWYERs (via HANDLED_BY).
+-- A CASE can have multiple LITIGANTS (via PARTICIPATES_IN).
+-- A CASE is heard in a COURT by a JUDGE (via HEARING, HEARD_BY, PANEL).
+
+---
+CRITICAL RULES:
+1. ALWAYS double-quote table names and column names (e.g., SELECT "Name" FROM "CASE").
+2. Only generate read-only SELECT queries.
+3. NEVER generate INSERT, UPDATE, DELETE, DROP, or ALTER.
+4. Output your response as valid JSON with exactly two fields: "sql" and "explanation".
+5. Use ILIKE for case-insensitive string matching.
+
+---
+FEW-SHOT EXAMPLES:
+
+User: "List all pending cases with their assigned lawyers."
+AI Response:
+{
+  "sql": "SELECT c.case_no, c.\"Name\" AS case_name, c.curr_status, l.\"Name\" AS lawyer_name FROM \"CASE\" c JOIN \"HANDLED_BY\" hb ON c.case_no = hb.case_no JOIN \"LAWYER\" l ON hb.\"BAR_Registration_No\" = l.\"BAR_Registration_No\" WHERE c.curr_status ILIKE 'Pending';",
+  "explanation": "I joined the CASE table with the LAWYER table using the HANDLED_BY junction table, filtering for cases where the current status is 'Pending'."
+}
+
+User: "How many cases are being heard in the Supreme Court?"
+AI Response:
+{
+  "sql": "SELECT count(c.case_no) AS total_supreme_court_cases FROM \"CASE\" c JOIN \"HEARING\" h ON c.case_no = h.case_no JOIN \"COURT\" ct ON h.court_id = ct.\"ID\" WHERE ct.\"Level\" ILIKE 'Supreme';",
+  "explanation": "I counted the number of cases by joining the CASE table to the COURT table through the HEARING table, and filtering for courts with the level 'Supreme'."
+}
+
+User: "Show me all the evidence submitted for criminal cases."
+AI Response:
+{
+  "sql": "SELECT e.\"ID\", e.\"Type\", e.\"Description\", e.\"Submission_date\", c.\"Name\" AS case_name FROM \"EVIDENCE\" e JOIN \"CASE\" c ON e.case_no = c.case_no WHERE c.\"type\" ILIKE 'Criminal';",
+  "explanation": "I joined the EVIDENCE table with the CASE table to retrieve evidence details where the case type is 'Criminal'."
+}
 `.trim();
 
 // ============================================================================
@@ -328,49 +365,66 @@ export async function generateSQL(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction: {
-      role: 'user',
-      parts: [{ text: SYSTEM_PROMPT }],
-    },
-    generationConfig: {
-      temperature: 0.1,   // Low temperature for deterministic SQL generation
-      maxOutputTokens: 1024,
-    },
-  });
+  
+  // Define a cascade of models from newest/best to older, less-congested fallbacks
+  const fallbackModels = [
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-pro-latest'
+  ];
 
-  const result = await model.generateContent(question);
-  const responseText = result.response.text().trim();
+  let lastError: any = null;
 
-  // Parse the JSON response
-  try {
-    // Clean up response — sometimes the LLM wraps in code fences
-    let cleanResponse = responseText;
-    if (cleanResponse.startsWith('```')) {
-      cleanResponse = cleanResponse
-        .replace(/^```(?:json)?\s*\n?/, '')
-        .replace(/\n?```\s*$/, '');
+  for (const modelName of fallbackModels) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: {
+          role: 'user',
+          parts: [{ text: SYSTEM_PROMPT }],
+        },
+        generationConfig: {
+          temperature: 0.1,
+        },
+      });
+
+      const result = await model.generateContent(question);
+      const text = result.response.text();
+      
+      let parsed;
+      try {
+        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        const jsonString = jsonMatch ? jsonMatch[1] : text;
+        parsed = JSON.parse(jsonString);
+      } catch (parseErr) {
+        throw new Error(`Failed to parse AI response as JSON. Raw text: ${text.substring(0, 50)}...`);
+      }
+
+      if (!parsed.sql || !parsed.explanation) {
+        throw new Error('AI response is missing "sql" or "explanation" fields.');
+      }
+
+      // If we made it here without throwing, this model succeeded!
+      if (modelName !== fallbackModels[0]) {
+        console.log(`✅ Successfully generated SQL using fallback model: ${modelName}`);
+      }
+      return parsed as { sql: string; explanation: string };
+      
+    } catch (err: any) {
+      console.warn(`⚠️ Model ${modelName} failed: ${err.message.split('\n')[0]}`);
+      lastError = err;
+      
+      // If it's a hard auth error, don't keep trying fallbacks
+      if (err.message?.includes('API_KEY')) {
+        break;
+      }
     }
-
-    const parsed = JSON.parse(cleanResponse);
-
-    if (!parsed.sql || typeof parsed.sql !== 'string') {
-      throw new Error('Invalid response structure from AI: missing "sql" field.');
-    }
-
-    return {
-      sql: parsed.sql.trim(),
-      explanation: parsed.explanation || 'Query generated successfully.',
-    };
-  } catch (parseError: any) {
-    console.error('Failed to parse AI response:', responseText);
-    throw new Error(
-      `Failed to parse AI response. Raw response: ${responseText.substring(0, 200)}`
-    );
   }
-}
 
+  // If all models in the fallback array failed, throw the last error to the router
+  throw lastError;
+}
 // ============================================================================
 // QUERY SUGGESTIONS — Asks the LLM for useful starter queries
 // ============================================================================

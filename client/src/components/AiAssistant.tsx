@@ -322,44 +322,34 @@ export default function AiAssistant({ onRunInEditor }: AiAssistantProps) {
 
   // ── Main render ──
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 260px)', minHeight: '500px' }}>
+    <div className="flex-1 flex flex-col min-h-0">
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-1 py-4">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center py-12 animate-fade-in">
-            {/* Hero icon */}
-            <div
-              className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl mb-6"
-              style={{
-                background: 'var(--gradient-ai)',
-                boxShadow: '0 8px 30px rgba(139,92,246,0.3)',
-              }}
-            >
-              🧠
-            </div>
+          <div className="flex flex-col items-center pt-8 pb-4 sm:pt-12 animate-fade-in">
             <h3 className="text-xl font-bold m-0 mb-1.5" style={{ color: '#e2e8f0' }}>
               NyaySetu AI Assistant
             </h3>
-            <p className="text-sm m-0 mb-8 max-w-md" style={{ color: 'rgba(148,163,184,0.6)' }}>
+            <p className="text-sm m-0 mb-10 max-w-md px-4" style={{ color: 'rgba(148,163,184,0.6)' }}>
               Ask questions about the judiciary database in plain English.
               I'll generate the SQL, execute it, and show you the results.
             </p>
 
             {/* Suggestion grid */}
-            <div className="w-full max-w-2xl">
+            <div className="w-full max-w-2xl px-2">
               <p
-                className="text-[10px] font-semibold tracking-[0.15em] uppercase mb-3"
+                className="text-[10px] font-semibold tracking-[0.15em] uppercase mb-4 text-left sm:text-center"
                 style={{ color: 'rgba(148,163,184,0.4)' }}
               >
                 Suggested questions
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {DEFAULT_SUGGESTIONS.map((s, idx) => (
                   <button
                     key={idx}
                     onClick={() => sendQuestion(s.question)}
                     disabled={isLoading}
-                    className="text-left p-3.5 rounded-xl transition-all duration-200 cursor-pointer group disabled:opacity-40 disabled:cursor-not-allowed border-none"
+                    className="text-left p-4 rounded-xl transition-all duration-200 cursor-pointer group disabled:opacity-40 disabled:cursor-not-allowed border-none flex items-start gap-3.5"
                     style={{
                       background: 'rgba(99,102,241,0.03)',
                       border: '1px solid var(--border-subtle)',
@@ -375,15 +365,13 @@ export default function AiAssistant({ onRunInEditor }: AiAssistantProps) {
                       e.currentTarget.style.transform = 'translateY(0)';
                     }}
                   >
-                    <span className="flex items-start gap-2.5">
-                      <span className="text-lg mt-0.5">{s.icon}</span>
-                      <span>
-                        <span className="text-sm font-medium block" style={{ color: '#c4b5fd' }}>
-                          {s.question}
-                        </span>
-                        <span className="text-[11px] mt-0.5 block" style={{ color: 'rgba(148,163,184,0.45)' }}>
-                          {s.description}
-                        </span>
+                    <span className="text-xl shrink-0 leading-none mt-0.5">{s.icon}</span>
+                    <span className="flex flex-col gap-1">
+                      <span className="text-sm font-medium leading-tight" style={{ color: '#c4b5fd' }}>
+                        {s.question}
+                      </span>
+                      <span className="text-xs leading-snug" style={{ color: 'rgba(148,163,184,0.45)' }}>
+                        {s.description}
                       </span>
                     </span>
                   </button>
@@ -419,7 +407,7 @@ export default function AiAssistant({ onRunInEditor }: AiAssistantProps) {
 
       {/* Input bar */}
       <div className="shrink-0 pt-4 pb-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-        <form onSubmit={handleSubmit} className="flex gap-2.5">
+        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2.5">
           <input
             ref={inputRef}
             type="text"
@@ -446,7 +434,7 @@ export default function AiAssistant({ onRunInEditor }: AiAssistantProps) {
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="font-semibold px-5 py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-none text-white text-sm whitespace-nowrap"
+            className="w-full sm:w-auto font-semibold px-5 py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-none text-white text-sm whitespace-nowrap flex justify-center items-center"
             style={{
               background: 'var(--gradient-ai)',
               boxShadow: '0 4px 15px rgba(139,92,246,0.3)',

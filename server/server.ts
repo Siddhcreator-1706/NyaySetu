@@ -3,14 +3,23 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { PrismaClient } from './generated/prisma/client';
 import aiRoutes from './aiRoutes';
+import dns from 'node:dns';
+
+// Fix for Node 18+ 'fetch failed' error with Gemini API (IPv6 resolution issues)
+dns.setDefaultResultOrder('ipv4first');
 
 dotenv.config();
+
+// Fix: "Do not know how to serialize a BigInt" error when Prisma returns COUNT() results
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 const prisma = new PrismaClient({
-  log: ['info', 'warn', 'error']
+  log: ['info']
 });
 
 app.use(cors());
@@ -107,7 +116,17 @@ app.post('/api/query', async (req: Request<{}, {}, { query: string }>, res: Resp
     const startTime = performance.now();
 
     try {
-      rows = await prisma.$queryRawUnsafe(query);
+      try {
+        rows = await prisma.$queryRawUnsafe(query);
+      } catch (err: any) {
+        // Handle Neon serverless cold starts and dropped connections
+        if (err.message?.includes('terminating connection') || err.message?.includes('E57P01') || err.message?.includes('closed')) {
+          console.warn('⚠️ Database connection dropped (likely Neon scaled to zero). Reconnecting and retrying...');
+          rows = await prisma.$queryRawUnsafe(query);
+        } else {
+          throw err;
+        }
+      }
     } catch (err: any) {
       errorOccured = true;
       errorMessage = err.message;

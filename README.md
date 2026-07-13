@@ -1,91 +1,134 @@
-# NyaySetu
+# NyaySetu ⚖️
 
-A comprehensive querying interface designed to view and manage judicial cases and related information with role-based access control.
+A judiciary database intelligence platform with AI-powered natural language querying and a built-in SQL editor.
 
-## Overview
+## Features
 
-NyaySetu is built with a modern web stack:
-- **Frontend**: React (Vite), Tailwind CSS, TypeScript
-- **Backend**: Node.js (Express), TypeScript
-- **Database**: PostgreSQL (via Prisma ORM)
+- **SQL Editor** — Write and execute SQL queries against the judiciary PostgreSQL database with syntax-highlighted results
+- **AI Assistant** — Ask questions in plain English (e.g., *"Show me all pending criminal cases"*) and get auto-generated, validated SQL
+- **Query Safety** — Dangerous operations (`INSERT`, `UPDATE`, `DELETE`, `DROP`, etc.) are blocked at the API level
+- **Query Logging** — All executed queries are logged with execution time and status
+
+## Tech Stack
+
+| Layer      | Technology                              |
+|------------|-----------------------------------------|
+| Frontend   | React 19, TypeScript, Vite, Tailwind v4 |
+| Backend    | Node.js, Express, TypeScript            |
+| Database   | PostgreSQL (Neon serverless)             |
+| ORM        | Prisma                                  |
+| AI         | Google Gemini 2.0 Flash                 |
+
+## Project Structure
+
+```
+NyaySetu/
+├── client/                  # React frontend (Vite)
+│   ├── public/              # Static assets (favicon, icons)
+│   └── src/
+│       ├── components/      # React components
+│       │   └── AiAssistant.tsx
+│       ├── App.tsx          # Main app with tabbed navigation
+│       ├── index.css        # Design system & global styles
+│       └── main.tsx         # Entry point
+│
+├── server/                  # Express backend
+│   ├── prisma/              # Prisma schema
+│   ├── aiService.ts         # Gemini AI integration & SQL validation
+│   ├── aiRoutes.ts          # AI API endpoints
+│   ├── server.ts            # Express server & core API routes
+│   └── schema.sql           # Full database DDL (17 tables)
+│
+└── shared/                  # Shared TypeScript types
+    └── types.ts
+```
+
+## Database Schema
+
+The judiciary database contains **17 tables** modeling:
+
+| Entity Tables          | Relationship Tables  |
+|------------------------|----------------------|
+| `CASE`                 | `HANDLED_BY`         |
+| `LAWYER`               | `PARTICIPATES_IN`    |
+| `JUDGE`                | `WORKS_FOR`          |
+| `COURT`                | `HANDLES`            |
+| `LITIGANTS`            | `FORMS`              |
+| `PANEL`                | `HEARD_BY`           |
+| `FILING_DETAILS`       | `IS_PRECEDENT`       |
+| `CASE_STATUS`          |                      |
+| `JUDGEMENT`            |                      |
+| `EVIDENCE`             |                      |
+| `WARRANT`              |                      |
+| `DOCUMENT_REPO`        |                      |
+| `HEARING`              |                      |
+| `HEARING_TRANSCRIPT`   |                      |
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed on your local machine:
-- [Node.js](https://nodejs.org/) (v18 or higher recommended)
-- [npm](https://www.npmjs.com/) (comes with Node.js)
-- A running instance of PostgreSQL (or a hosted DB like Neon)
+- [Node.js](https://nodejs.org/) v18+
+- A PostgreSQL instance (or [Neon](https://neon.tech/) serverless)
+- A [Google Gemini API key](https://aistudio.google.com/apikey) (free tier)
 
-## Local Development Setup
+## Setup
 
-Follow these steps to get the project running locally.
+### 1. Clone & Install
 
-### 1. Clone the Repository
 ```bash
 git clone <repository_url>
 cd NyaySetu
+
+# Backend
+cd server && npm install
+
+# Frontend
+cd ../client && npm install
 ```
 
-### 2. Install Dependencies
+### 2. Configure Environment
 
-The project is split into a `client` (frontend) and `server` (backend). You need to install dependencies for both.
+Create `server/.env`:
 
-**For the Backend:**
+```env
+PORT=5000
+DATABASE_URL="postgresql://user:password@host:5432/dbname?sslmode=require"
+GEMINI_API_KEY="your_gemini_api_key_here"
+```
+
+### 3. Initialize Database
+
 ```bash
 cd server
-npm install
-```
-
-**For the Frontend:**
-```bash
-cd ../client
-npm install
-```
-
-### 3. Configure Environment Variables
-
-Navigate to the `server` directory and set up your environment variables:
-```bash
-cd ../server
-```
-
-Create a `.env` file in the `server` directory and configure it:
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/yourdbname?schema=public"
-PORT=5000
-```
-*(Make sure to replace the `DATABASE_URL` with your actual PostgreSQL connection string).*
-
-### 4. Database Initialization
-
-From within the `server` directory, run the following commands to initialize your database schema and generate the Prisma client:
-
-```bash
 npx prisma generate
 npx prisma db push
 ```
 
-## Running the Application
+### 4. Run
 
-To run the application locally, you will need to start both the backend server and the frontend client concurrently. Open **two separate terminal windows**.
-
-**Terminal 1: Start the Backend Server**
 ```bash
-cd server
-npm run dev
+# Terminal 1 — Backend
+cd server && npm run dev
+
+# Terminal 2 — Frontend
+cd client && npm run dev
 ```
-*The server will start running on `http://localhost:5000` (by default).*
 
-**Terminal 2: Start the Frontend Client**
-```bash
-cd client
-npm run dev
-```
-*The client will start running on `http://localhost:5173`.*
+Open **http://localhost:5173** in your browser.
 
-## Usage
+## API Endpoints
 
-- Open your browser and navigate to `http://localhost:5173`.
-- Use the **SQL Editor** to run queries directly against the judicial database.
-- Save and organize useful queries for quick access.
-- Monitor query performance and errors in the **Query History** tab.
+| Method | Endpoint                 | Description                          |
+|--------|--------------------------|--------------------------------------|
+| GET    | `/api/health`            | Database connectivity check          |
+| POST   | `/api/query`             | Execute SQL query (SELECT only)      |
+| GET    | `/api/saved-queries`     | List saved queries                   |
+| POST   | `/api/saved-queries`     | Save a query                         |
+| DELETE | `/api/saved-queries/:id` | Delete a saved query                 |
+| GET    | `/api/logs`              | Recent query execution logs          |
+| DELETE | `/api/logs`              | Clear all logs                       |
+| POST   | `/api/ai/generate-sql`   | NL → SQL generation & execution      |
+| POST   | `/api/ai/suggest-queries`| AI-generated query suggestions       |
+
+## License
+
+See [LICENSE](LICENSE) for details.
