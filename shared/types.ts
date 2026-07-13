@@ -23,3 +23,21 @@ export interface QueryResponse {
   timeMs: number;
   error?: string;
 }
+
+// AI NL→SQL Types
+export interface AiQueryRequest {
+  question: string;
+}
+
+export interface AiQueryResponse {
+  sql: string;
+  explanation: string;
+  rows: any[];
+  executionTimeMs: number;
+  error?: string;
+}
+
+export interface AiSuggestion {
+  question: string;
+  description: string;
+}

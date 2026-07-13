@@ -2,18 +2,22 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { PrismaClient } from './generated/prisma/client';
+import aiRoutes from './aiRoutes';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json());
-
 const prisma = new PrismaClient({
   log: ['info', 'warn', 'error']
 });
+
+app.use(cors());
+app.use(express.json());
+
+// Mount AI-powered NL→SQL routes
+app.use('/api/ai', aiRoutes(prisma));
 
 // Initialize database connection & helper tables in Postgres on startup
 async function initDb() {
@@ -83,6 +87,18 @@ app.post('/api/query', async (req: Request<{}, {}, { query: string }>, res: Resp
 
     if (!query) {
       return res.status(400).json({ error: "SQL query string is required" })
+    }
+
+    // ── Safety validation: block dangerous operations ──
+    const trimmedUpper = query.trim().toUpperCase();
+    const BLOCKED_OPS = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'TRUNCATE', 'CREATE', 'GRANT', 'REVOKE'];
+    const firstWord = trimmedUpper.split(/\s+/)[0];
+
+    if (BLOCKED_OPS.includes(firstWord)) {
+      return res.status(403).json({
+        error: `🚫 Operation blocked: ${firstWord} statements are not allowed. This interface only supports SELECT queries for data safety.`,
+        executionTimeMs: 0,
+      });
     }
 
     let errorOccured = false;
