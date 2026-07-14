@@ -77,16 +77,20 @@ jobs:
     needs: [frontend-checks, backend-checks]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    env:
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
     
     steps:
       - name: Trigger Render Backend Deployment
         if: env.RENDER_DEPLOY_HOOK != ''
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: curl -X POST "$RENDER_DEPLOY_HOOK"
 
-      - name: Trigger Vercel Frontend Deployment
-        if: env.VERCEL_DEPLOY_HOOK != ''
+      - name: Deploy Frontend via Vercel CLI
+        working-directory: ./client
         env:
-          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
-        run: curl -X POST "$VERCEL_DEPLOY_HOOK"
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
