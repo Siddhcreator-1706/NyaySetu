@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from './generated/prisma/client';
+import { PrismaClient } from '@prisma/client';
 import aiRoutes from './aiRoutes';
 import dns from 'node:dns';
 

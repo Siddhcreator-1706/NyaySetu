@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from './generated/prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { generateSQL, validateSQL, generateSuggestions } from './aiService';
 
 // ============================================================================
