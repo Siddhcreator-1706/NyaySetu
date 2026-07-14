@@ -1,0 +1,92 @@
+name: NyaySetu CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # ==========================================
+  # FRONTEND PIPELINE
+  # ==========================================
+  frontend-checks:
+    name: Frontend (React/Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ./client
+        run: npm ci || npm install
+
+      - name: Run ESLint
+        working-directory: ./client
+        run: npm run lint
+
+      - name: Type Check & Build
+        working-directory: ./client
+        run: npm run build
+
+  # ==========================================
+  # BACKEND PIPELINE
+  # ==========================================
+  backend-checks:
+    name: Backend (Node/Prisma)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ./server
+        run: npm ci || npm install
+
+      - name: Validate Prisma Schema
+        working-directory: ./server
+        run: npx prisma validate
+
+      - name: Generate Prisma Client
+        working-directory: ./server
+        run: npx prisma generate
+
+      - name: Type Check & Build
+        working-directory: ./server
+        run: npm run build
+
+  # ==========================================
+  # DEPLOYMENT PIPELINE
+  # ==========================================
+  deploy:
+    name: Deploy to Production
+    needs: [frontend-checks, backend-checks]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Trigger Render Backend Deployment
+        if: env.RENDER_DEPLOY_HOOK != ''
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: curl -X POST "$RENDER_DEPLOY_HOOK"
+
+      - name: Trigger Vercel Frontend Deployment
+        if: env.VERCEL_DEPLOY_HOOK != ''
+        env:
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: curl -X POST "$VERCEL_DEPLOY_HOOK"
