@@ -12,9 +12,15 @@ function App() {
   const [columns, setColumns] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState<{ count: number; timeMs: number } | null>(null);
+  const [stats, setStats] = useState<{ timeMs: number } | null>(null);
+  
+  // ── Pagination state ──
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRows, setTotalRows] = useState(0);
+  const pageSize = 50;
 
-  const handleRunQuery = async () => {
+  const fetchQuery = async (targetPage = 1) => {
     if (!query.trim()) return;
     setLoading(true);
     setError(null);
@@ -26,17 +32,20 @@ function App() {
       const response = await fetch('http://localhost:5000/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, page: targetPage, pageSize }),
       });
       const data = await response.json();
 
       if (!response.ok || data.error) {
         setError(data.error || 'Failed to execute query');
-        if (data.executionTimeMs) setStats({ count: 0, timeMs: data.executionTimeMs });
+        if (data.executionTimeMs) setStats({ timeMs: data.executionTimeMs });
       } else {
         const returnedRows = data.rows || [];
         setRows(returnedRows);
-        setStats({ count: returnedRows.length, timeMs: data.executionTimeMs });
+        setPage(data.page);
+        setTotalPages(data.totalPages);
+        setTotalRows(data.totalRows);
+        setStats({ timeMs: data.executionTimeMs });
         if (returnedRows.length > 0) setColumns(Object.keys(returnedRows[0]));
       }
     } catch (err: any) {
@@ -44,6 +53,15 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRunQuery = () => {
+    fetchQuery(1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || loading) return;
+    fetchQuery(newPage);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -56,6 +74,8 @@ function App() {
   const handleRunInEditor = (sql: string) => {
     setQuery(sql);
     setActiveTab('sql');
+    // Wait for state to settle then fetch
+    setTimeout(() => fetchQuery(1), 10);
   };
 
   return (
@@ -351,6 +371,47 @@ function App() {
                 <p className="text-xs m-0" style={{ color: 'rgba(148,163,184,0.5)' }}>
                   Write a query above and click "Execute Query" to fetch results.
                 </p>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {!loading && !error && totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 pt-4 shrink-0 border-t border-[var(--border-subtle)]">
+                <span className="text-xs" style={{ color: 'rgba(148,163,184,0.6)' }}>
+                  Showing <strong style={{ color: '#e2e8f0' }}>{rows.length}</strong> rows per page
+                </span>
+                
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handlePageChange(page - 1)}
+                    disabled={page === 1 || loading}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    style={{
+                      background: 'rgba(99,102,241,0.05)',
+                      color: '#a5b4fc',
+                      border: '1px solid rgba(99,102,241,0.15)'
+                    }}
+                  >
+                    &larr; Prev
+                  </button>
+                  
+                  <span className="text-xs font-medium" style={{ color: '#cbd5e1' }}>
+                    Page {page} of {totalPages}
+                  </span>
+                  
+                  <button
+                    onClick={() => handlePageChange(page + 1)}
+                    disabled={page === totalPages || loading}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    style={{
+                      background: 'rgba(99,102,241,0.05)',
+                      color: '#a5b4fc',
+                      border: '1px solid rgba(99,102,241,0.15)'
+                    }}
+                  >
+                    Next &rarr;
+                  </button>
+                </div>
               </div>
             )}
           </div>

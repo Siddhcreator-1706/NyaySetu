@@ -90,7 +90,7 @@ app.get('/api/health', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/query', async (req: Request<{}, {}, { query: string }>, res: Response) => {
+app.post('/api/query', async (req: Request<{}, {}, { query: string; page?: number; pageSize?: number }>, res: Response) => {
   try {
     const { query } = req.body;
 
@@ -113,16 +113,37 @@ app.post('/api/query', async (req: Request<{}, {}, { query: string }>, res: Resp
     let errorOccured = false;
     let errorMessage = '';
     let rows: any[] = [];
+    let totalRows = 0;
+    
+    const page = Math.max(1, req.body.page || 1);
+    const pageSize = Math.max(1, req.body.pageSize || 50);
+    const offset = (page - 1) * pageSize;
+
     const startTime = performance.now();
 
     try {
+      // Strip trailing semicolons for subquery wrapping
+      const cleanQuery = query.replace(/;+\s*$/, '');
+      const paginatedQuery = `SELECT * FROM (${cleanQuery}) AS user_query LIMIT ${pageSize} OFFSET ${offset}`;
+      const countQuery = `SELECT COUNT(*) as total_count FROM (${cleanQuery}) AS user_query`;
+
+      const runQueries = async () => {
+        const dataRows = await prisma.$queryRawUnsafe<any[]>(paginatedQuery);
+        const countResult = await prisma.$queryRawUnsafe<any[]>(countQuery);
+        return { dataRows, count: Number(countResult[0]?.total_count || 0) };
+      };
+
       try {
-        rows = await prisma.$queryRawUnsafe(query);
+        const result = await runQueries();
+        rows = result.dataRows;
+        totalRows = result.count;
       } catch (err: any) {
         // Handle Neon serverless cold starts and dropped connections
         if (err.message?.includes('terminating connection') || err.message?.includes('E57P01') || err.message?.includes('closed')) {
           console.warn('⚠️ Database connection dropped (likely Neon scaled to zero). Reconnecting and retrying...');
-          rows = await prisma.$queryRawUnsafe(query);
+          const result = await runQueries();
+          rows = result.dataRows;
+          totalRows = result.count;
         } else {
           throw err;
         }
@@ -155,16 +176,17 @@ app.post('/api/query', async (req: Request<{}, {}, { query: string }>, res: Resp
       }
 
       if (errorOccured) {
-        console.error(`Query Execution Error: [${query}] -> ${errorMessage}`);
-        return res.status(400).json({
-          error: `SQL Error: ${errorMessage}`,
-          executionTimeMs
-        });
+        return res.status(500).json({ error: errorMessage, executionTimeMs });
       }
 
-      return res.json({
-        success: true,
+      const totalPages = Math.ceil(totalRows / pageSize);
+
+      res.json({
         rows,
+        totalRows,
+        page,
+        pageSize,
+        totalPages,
         executionTimeMs
       });
     }

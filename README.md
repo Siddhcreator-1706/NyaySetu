@@ -17,7 +17,7 @@ A judiciary database intelligence platform with AI-powered natural language quer
 | Backend    | Node.js, Express, TypeScript            |
 | Database   | PostgreSQL (Neon serverless)             |
 | ORM        | Prisma                                  |
-| AI         | Google Gemini 2.0 Flash                 |
+| AI         | Google Gemini 3.5 Flash                 |
 
 ## Project Structure
 
@@ -44,6 +44,8 @@ NyaySetu/
 ```
 
 ## Database Schema
+
+![Database Schema](./Schema.png)
 
 The judiciary database contains **17 tables** modeling:
 
@@ -114,6 +116,29 @@ cd client && npm run dev
 ```
 
 Open **http://localhost:5173** in your browser.
+
+## Deployment
+
+### 1. Deploy Frontend (Vercel)
+Vercel is the easiest way to host the React/Vite frontend.
+
+1. Create a free account at [Vercel](https://vercel.com/) and connect your GitHub repository.
+2. When importing the project, configure the following settings:
+   - **Framework Preset:** Vite
+   - **Root Directory:** `client`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+3. Click **Deploy**. Vercel will automatically build and host your frontend on a global CDN.
+4. *Note: You will need to update the API URLs in `client/src/App.tsx` and `client/src/components/AiAssistant.tsx` from `http://localhost:5000` to your live backend URL before pushing to production.*
+
+### 2. Deploy Backend (Render or Railway)
+Because the backend uses Prisma, long-running database connections, and a custom Node Express server, deploying it to a dedicated container service like **Render** or **Railway** is highly recommended over Vercel serverless functions.
+
+1. Create a Web Service on [Render](https://render.com/).
+2. Set the Root Directory to `server`.
+3. Set the Build Command to `npm install && npx prisma generate`.
+4. Set the Start Command to `npm start` (ensure you have a start script in your `package.json` like `"start": "npx ts-node server.ts"`).
+5. Add your Environment Variables (`DATABASE_URL`, `GEMINI_API_KEY`, etc.).
 
 ## API Endpoints
 

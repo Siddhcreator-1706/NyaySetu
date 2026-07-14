@@ -14,7 +14,7 @@ export default function aiRoutes(prisma: PrismaClient): Router {
   // POST /api/ai/generate-sql
   // Converts a natural language question → SQL → executes → returns results
   // --------------------------------------------------------------------------
-  router.post('/generate-sql', async (req: Request<{}, {}, { question: string }>, res: Response) => {
+  router.post('/generate-sql', async (req: Request<{}, {}, { question: string; page?: number; pageSize?: number }>, res: Response) => {
     const { question } = req.body;
 
     if (!question || !question.trim()) {
@@ -23,6 +23,7 @@ export default function aiRoutes(prisma: PrismaClient): Router {
         sql: '',
         explanation: '',
         rows: [],
+        totalRows: 0,
         executionTimeMs: 0,
       });
     }
@@ -59,12 +60,30 @@ export default function aiRoutes(prisma: PrismaClient): Router {
         executionError = null; // Reset for this attempt
 
         try {
+          const cleanQuery = sql.replace(/;+\s*$/, '');
+          const page = Math.max(1, req.body.page || 1);
+          const pageSize = Math.max(1, req.body.pageSize || 50);
+          const offset = (page - 1) * pageSize;
+          
+          const paginatedQuery = `SELECT * FROM (${cleanQuery}) AS user_query LIMIT ${pageSize} OFFSET ${offset}`;
+          const countQuery = `SELECT COUNT(*) as total_count FROM (${cleanQuery}) AS user_query`;
+
+          const runQueries = async () => {
+            const dataRows = await prisma.$queryRawUnsafe<any[]>(paginatedQuery);
+            const countResult = await prisma.$queryRawUnsafe<any[]>(countQuery);
+            return { dataRows, count: Number(countResult[0]?.total_count || 0) };
+          };
+
           try {
-            rows = await prisma.$queryRawUnsafe(sql);
+            const result = await runQueries();
+            rows = result.dataRows;
+            (req as any).totalRows = result.count;
           } catch (execErr: any) {
             if (execErr.message?.includes('terminating connection') || execErr.message?.includes('E57P01') || execErr.message?.includes('closed')) {
               console.warn('⚠️ Database connection dropped during AI query. Retrying immediately...');
-              rows = await prisma.$queryRawUnsafe(sql);
+              const result = await runQueries();
+              rows = result.dataRows;
+              (req as any).totalRows = result.count;
             } else {
               throw execErr;
             }
@@ -114,6 +133,7 @@ export default function aiRoutes(prisma: PrismaClient): Router {
           sql,
           explanation,
           rows: [],
+          totalRows: 0,
           executionTimeMs,
         });
       }
@@ -122,6 +142,7 @@ export default function aiRoutes(prisma: PrismaClient): Router {
         sql,
         explanation,
         rows,
+        totalRows: (req as any).totalRows || 0,
         executionTimeMs,
       });
 

@@ -237,11 +237,12 @@ RULES:
 1. Generate ONLY SELECT queries. Never generate INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, or CREATE statements.
 2. Always use double-quoted identifiers for table and column names exactly as shown in the schema (e.g., "CASE", "BAR_Registration_No").
 3. Use appropriate JOINs when the question involves multiple tables. Prefer INNER JOIN unless the question implies optional matches.
-4. Add LIMIT 50 to queries that could return many rows, unless the user specifies a different limit.
-5. Use meaningful column aliases with AS for computed columns.
-6. For aggregate queries, always include a GROUP BY clause.
-7. When filtering by text values, use ILIKE for case-insensitive matching unless exact match is intended.
-8. Return results ordered in a sensible way (e.g., by date DESC, by count DESC).
+4. Use meaningful column aliases with AS for computed columns.
+5. For aggregate queries, always include a GROUP BY clause.
+6. When filtering by text values, use ILIKE for case-insensitive matching unless exact match is intended.
+7. Return results ordered in a sensible way (e.g., by date DESC, by count DESC).
+8. CRITICAL: Use DOUBLE QUOTES for identifiers (tables/columns) e.g. "CASE", "curr_status".
+9. CRITICAL: NEVER use double quotes for string values. ALWAYS use SINGLE QUOTES for string literals (e.g. use 'Pending' NOT "Pending"). Using double quotes for strings will crash PostgreSQL.
 
 RESPONSE FORMAT:
 You must respond with ONLY a JSON object (no markdown, no code fences, no extra text) in this exact format:
