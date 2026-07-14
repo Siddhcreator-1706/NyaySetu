@@ -1,159 +1,144 @@
-# NyaySetu ⚖️
+<div align="center">
 
-A judiciary database intelligence platform with AI-powered natural language querying and a built-in SQL editor.
+# NyaySetu
 
-## Features
+### Judiciary Database Intelligence Platform
 
-- **SQL Editor** — Write and execute SQL queries against the judiciary PostgreSQL database with syntax-highlighted results
-- **AI Assistant** — Ask questions in plain English (e.g., *"Show me all pending criminal cases"*) and get auto-generated, validated SQL
-- **Query Safety** — Dangerous operations (`INSERT`, `UPDATE`, `DELETE`, `DROP`, etc.) are blocked at the API level
-- **Query Logging** — All executed queries are logged with execution time and status
+An AI-powered platform for querying Indian judiciary databases using natural language. Built as a capstone project for the DBMS course at DA-IICT.
+
+[![License](https://img.shields.io/badge/License-EPL%202.0-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-4169E1?logo=postgresql&logoColor=white)](https://neon.tech/)
+[![Google Gemini](https://img.shields.io/badge/AI-Gemini%203.5%20Flash-8E75B2?logo=googlegemini&logoColor=white)](https://ai.google.dev/)
+
+</div>
+
+---
+
+## About
+
+NyaySetu bridges the gap between complex SQL and everyday language. Users can ask questions like *"Show me all pending criminal cases"* and the platform automatically generates, validates, and executes the SQL — returning results in a clean, paginated interface.
+
+**Key capabilities:**
+
+- **Natural Language Querying** — Powered by Google Gemini, converts plain English questions to PostgreSQL queries
+- **Built-in SQL Editor** — Full SQL editor with syntax highlighting and server-side paginated results
+- **Self-Healing Queries** — If AI-generated SQL fails, the system automatically diagnoses and retries (up to 2 attempts)
+- **Safety Layer** — All write operations (`INSERT`, `UPDATE`, `DELETE`, `DROP`) are blocked at the API level
+- **Query Logging** — Every executed query is logged with execution time and status
 
 ## Tech Stack
 
-| Layer      | Technology                              |
-|------------|-----------------------------------------|
-| Frontend   | React 19, TypeScript, Vite, Tailwind v4 |
-| Backend    | Node.js, Express, TypeScript            |
-| Database   | PostgreSQL (Neon serverless)             |
-| ORM        | Prisma                                  |
-| AI         | Google Gemini 3.5 Flash                 |
+| Layer | Technology |
+|---|---|
+| Frontend | React 19 · TypeScript · Vite · Tailwind CSS v4 |
+| Backend | Node.js · Express · TypeScript |
+| Database | PostgreSQL (Neon Serverless) |
+| ORM | Prisma |
+| AI | Google Gemini 3.5 Flash |
+
+## Database Schema
+
+![ER Diagram](./Schema.png)
+
+<details>
+<summary>View all 17 tables</summary>
+
+| Entity Tables | Relationship Tables |
+|---|---|
+| `CASE` | `HANDLED_BY` |
+| `LAWYER` | `PARTICIPATES_IN` |
+| `JUDGE` | `WORKS_FOR` |
+| `COURT` | `HANDLES` |
+| `LITIGANTS` | `FORMS` |
+| `PANEL` | `HEARD_BY` |
+| `FILING_DETAILS` | `IS_PRECEDENT` |
+| `CASE_STATUS` | |
+| `JUDGEMENT` | |
+| `EVIDENCE` | |
+| `WARRANT` | |
+| `DOCUMENT_REPO` | |
+| `HEARING` | |
+| `HEARING_TRANSCRIPT` | |
+
+</details>
 
 ## Project Structure
 
 ```
 NyaySetu/
-├── client/                  # React frontend (Vite)
-│   ├── public/              # Static assets (favicon, icons)
+├── client/                    # React frontend
 │   └── src/
-│       ├── components/      # React components
+│       ├── components/
 │       │   └── AiAssistant.tsx
-│       ├── App.tsx          # Main app with tabbed navigation
-│       ├── index.css        # Design system & global styles
-│       └── main.tsx         # Entry point
-│
-├── server/                  # Express backend
-│   ├── prisma/              # Prisma schema
-│   ├── aiService.ts         # Gemini AI integration & SQL validation
-│   ├── aiRoutes.ts          # AI API endpoints
-│   ├── server.ts            # Express server & core API routes
-│   └── schema.sql           # Full database DDL (17 tables)
-│
-└── shared/                  # Shared TypeScript types
-    └── types.ts
+│       ├── App.tsx
+│       ├── config.ts          # API base URL config
+│       └── index.css
+├── server/                    # Express backend
+│   ├── prisma/
+│   ├── aiService.ts           # Gemini integration & prompt engineering
+│   ├── aiRoutes.ts            # AI endpoints with auto-healing
+│   ├── server.ts              # Core API & middleware
+│   └── schema.sql             # Database DDL
+├── shared/
+│   └── types.ts
+└── Schema.png
 ```
 
-## Database Schema
+## Getting Started
 
-![Database Schema](./Schema.png)
+### Prerequisites
 
-The judiciary database contains **17 tables** modeling:
-
-| Entity Tables          | Relationship Tables  |
-|------------------------|----------------------|
-| `CASE`                 | `HANDLED_BY`         |
-| `LAWYER`               | `PARTICIPATES_IN`    |
-| `JUDGE`                | `WORKS_FOR`          |
-| `COURT`                | `HANDLES`            |
-| `LITIGANTS`            | `FORMS`              |
-| `PANEL`                | `HEARD_BY`           |
-| `FILING_DETAILS`       | `IS_PRECEDENT`       |
-| `CASE_STATUS`          |                      |
-| `JUDGEMENT`            |                      |
-| `EVIDENCE`             |                      |
-| `WARRANT`              |                      |
-| `DOCUMENT_REPO`        |                      |
-| `HEARING`              |                      |
-| `HEARING_TRANSCRIPT`   |                      |
-
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) v18+
-- A PostgreSQL instance (or [Neon](https://neon.tech/) serverless)
+- [Node.js](https://nodejs.org/) v18 or higher
+- A [Neon](https://neon.tech/) PostgreSQL database (free tier)
 - A [Google Gemini API key](https://aistudio.google.com/apikey) (free tier)
 
-## Setup
-
-### 1. Clone & Install
+### Installation
 
 ```bash
+# Clone the repository
 git clone <repository_url>
 cd NyaySetu
 
-# Backend
+# Install dependencies
 cd server && npm install
-
-# Frontend
 cd ../client && npm install
 ```
 
-### 2. Configure Environment
+### Configuration
 
 Create `server/.env`:
 
 ```env
 PORT=5000
 DATABASE_URL="postgresql://user:password@host:5432/dbname?sslmode=require"
-GEMINI_API_KEY="your_gemini_api_key_here"
+GEMINI_API_KEY="your_gemini_api_key"
 ```
 
-### 3. Initialize Database
+### Running Locally
 
 ```bash
+# Terminal 1 — Start the backend
 cd server
 npx prisma generate
 npx prisma db push
+npm run dev
+
+# Terminal 2 — Start the frontend
+cd client
+npm run dev
 ```
-
-### 4. Run
-
-```bash
-# Terminal 1 — Backend
-cd server && npm run dev
-
-# Terminal 2 — Frontend
-cd client && npm run dev
-```
-
-Open **http://localhost:5173** in your browser.
 
 ## Deployment
 
-### 1. Deploy Frontend (Vercel)
-Vercel is the easiest way to host the React/Vite frontend.
+The platform is designed to be easily deployed across standard cloud providers. The recommended stack is:
+- **Frontend**: [Vercel](https://vercel.com) (Vite preset)
+- **Backend**: [Render](https://render.com) (Node Web Service)
+- **Database**: [Neon](https://neon.tech) (Serverless PostgreSQL)
 
-1. Create a free account at [Vercel](https://vercel.com/) and connect your GitHub repository.
-2. When importing the project, configure the following settings:
-   - **Framework Preset:** Vite
-   - **Root Directory:** `client`
-   - **Build Command:** `npm run build`
-   - **Output Directory:** `dist`
-3. Click **Deploy**. Vercel will automatically build and host your frontend on a global CDN.
-4. *Note: You will need to update the API URLs in `client/src/App.tsx` and `client/src/components/AiAssistant.tsx` from `http://localhost:5000` to your live backend URL before pushing to production.*
-
-### 2. Deploy Backend (Render or Railway)
-Because the backend uses Prisma, long-running database connections, and a custom Node Express server, deploying it to a dedicated container service like **Render** or **Railway** is highly recommended over Vercel serverless functions.
-
-1. Create a Web Service on [Render](https://render.com/).
-2. Set the Root Directory to `server`.
-3. Set the Build Command to `npm install && npx prisma generate`.
-4. Set the Start Command to `npm start` (ensure you have a start script in your `package.json` like `"start": "npx ts-node server.ts"`).
-5. Add your Environment Variables (`DATABASE_URL`, `GEMINI_API_KEY`, etc.).
-
-## API Endpoints
-
-| Method | Endpoint                 | Description                          |
-|--------|--------------------------|--------------------------------------|
-| GET    | `/api/health`            | Database connectivity check          |
-| POST   | `/api/query`             | Execute SQL query (SELECT only)      |
-| GET    | `/api/saved-queries`     | List saved queries                   |
-| POST   | `/api/saved-queries`     | Save a query                         |
-| DELETE | `/api/saved-queries/:id` | Delete a saved query                 |
-| GET    | `/api/logs`              | Recent query execution logs          |
-| DELETE | `/api/logs`              | Clear all logs                       |
-| POST   | `/api/ai/generate-sql`   | NL → SQL generation & execution      |
-| POST   | `/api/ai/suggest-queries`| AI-generated query suggestions       |
+Make sure to set the `VITE_API_URL` environment variable on the frontend to point to your backend, and the `DATABASE_URL`, `GEMINI_API_KEY`, and `CLIENT_URL` variables on your backend.
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+Distributed under the Eclipse Public License. See [LICENSE](LICENSE) for details.

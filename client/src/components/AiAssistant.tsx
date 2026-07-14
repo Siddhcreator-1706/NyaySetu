@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { API_BASE } from '../config';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,7 +73,7 @@ export default function AiAssistant({ onRunInEditor }: AiAssistantProps) {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/ai/generate-sql', {
+      const res = await fetch(`${API_BASE}/api/ai/generate-sql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),

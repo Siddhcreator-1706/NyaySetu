@@ -22,7 +22,12 @@ const prisma = new PrismaClient({
   log: ['info']
 });
 
-app.use(cors());
+// CORS — allow the Vercel frontend in production, everything in dev
+app.use(cors({
+  origin: process.env.CLIENT_URL || '*',
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  credentials: true,
+}));
 app.use(express.json());
 
 // Mount AI-powered NL→SQL routes

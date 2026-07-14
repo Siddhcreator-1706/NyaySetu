@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import AiAssistant from './components/AiAssistant';
+import { API_BASE } from './config';
 
 type Tab = 'sql' | 'ai';
 
@@ -29,7 +30,7 @@ function App() {
     setStats(null);
 
     try {
-      const response = await fetch('http://localhost:5000/api/query', {
+      const response = await fetch(`${API_BASE}/api/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, page: targetPage, pageSize }),
@@ -248,7 +249,7 @@ function App() {
                       border: '1px solid rgba(99,102,241,0.12)',
                     }}
                   >
-                    {stats.count} rows
+                    {totalRows} rows
                   </span>
                   <span
                     className="flex-1 sm:flex-none text-center text-xs px-2.5 py-1.5 rounded-md font-medium"
