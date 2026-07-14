@@ -24,7 +24,7 @@ const prisma = new PrismaClient({
 
 // CORS — allow the Vercel frontend in production, everything in dev
 app.use(cors({
-  origin: process.env.CLIENT_URL || '*',
+  origin: process.env.CLIENT_URL?.replace(/\/$/, '') || '*',
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   credentials: true,
 }));
@@ -133,8 +133,8 @@ app.post('/api/query', async (req: Request<{}, {}, { query: string; page?: numbe
       const countQuery = `SELECT COUNT(*) as total_count FROM (${cleanQuery}) AS user_query`;
 
       const runQueries = async () => {
-        const dataRows = await prisma.$queryRawUnsafe<any[]>(paginatedQuery);
-        const countResult = await prisma.$queryRawUnsafe<any[]>(countQuery);
+        const dataRows = await prisma.$queryRawUnsafe(paginatedQuery) as any[];
+        const countResult = await prisma.$queryRawUnsafe(countQuery) as any[];
         return { dataRows, count: Number(countResult[0]?.total_count || 0) };
       };
 

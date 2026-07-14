@@ -69,8 +69,8 @@ export default function aiRoutes(prisma: PrismaClient): Router {
           const countQuery = `SELECT COUNT(*) as total_count FROM (${cleanQuery}) AS user_query`;
 
           const runQueries = async () => {
-            const dataRows = await prisma.$queryRawUnsafe<any[]>(paginatedQuery);
-            const countResult = await prisma.$queryRawUnsafe<any[]>(countQuery);
+            const dataRows = await prisma.$queryRawUnsafe(paginatedQuery) as any[];
+            const countResult = await prisma.$queryRawUnsafe(countQuery) as any[];
             return { dataRows, count: Number(countResult[0]?.total_count || 0) };
           };
 
